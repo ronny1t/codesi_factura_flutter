@@ -1,27 +1,25 @@
 import 'package:flutter/material.dart';
-import 'screens/categorias_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
-  runApp(const CodesiFacturaApp());
+  runApp(const MyApp());
 }
 
-class CodesiFacturaApp extends StatelessWidget {
-  const CodesiFacturaApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Codesi Factura',
-
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
         ),
         useMaterial3: true,
       ),
-
-      home: const CategoriasScreen(),
+      home: const HomeScreen(),
     );
   }
 }
