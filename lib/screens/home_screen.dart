@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'categorias_screen.dart';
 import 'productos_screen.dart';
 import 'clientes_screen.dart';
+import 'facturas_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -79,6 +80,25 @@ class HomeScreen extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (context) =>
                           const ClientesScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            SizedBox(
+              width: double.infinity,
+              height: 60,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.receipt_long),
+                label: const Text('Factura'),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const FacturasScreen(),
                     ),
                   );
                 },
