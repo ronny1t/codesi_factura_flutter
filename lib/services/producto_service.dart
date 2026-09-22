@@ -11,4 +11,23 @@ class ProductoService {
         )
         .toList();
   }
+
+  static Future<Producto> crearProducto(
+    Producto producto,
+  ) async {
+    final data = await ApiService.post(
+      'Productos',
+      {
+        'codigo_principal': producto.codigoPrincipal,
+        'nombre': producto.nombre,
+        'precio_unitario': producto.precioUnitario,
+        'stock': producto.stock,
+        'tarifa_iva': producto.tarifaIva,
+        'id_categoria': producto.idCategoria,
+        'activo': producto.activo,
+      },
+    );
+
+    return Producto.fromJson(data);
+  }
 }

@@ -5,7 +5,8 @@ class Cliente {
   final String razonSocial;
   final String? direccion;
   final String? telefono;
-  final String email;
+  final String? email;
+  final bool activo;
 
   Cliente({
     required this.idCliente,
@@ -14,18 +15,47 @@ class Cliente {
     required this.razonSocial,
     this.direccion,
     this.telefono,
-    required this.email,
+    this.email,
+    required this.activo,
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
     return Cliente(
-      idCliente: json['id_cliente'],
-      tipoIdentificacion: json['tipo_identificacion'],
-      identificacion: json['identificacion'],
-      razonSocial: json['razon_social'],
-      direccion: json['direccion'],
-      telefono: json['telefono'],
-      email: json['email'],
+      idCliente: json['id_cliente'] ?? 0,
+      tipoIdentificacion:
+          json['tipo_identificacion'] ?? '',
+      identificacion:
+          json['identificacion'] ?? '',
+      razonSocial:
+          json['razon_social'] ?? '',
+      direccion:
+          json['direccion'],
+      telefono:
+          json['telefono'],
+      email:
+          json['email'],
+      activo:
+          json['activo'] ?? true,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id_cliente': idCliente,
+      'tipo_identificacion':
+          tipoIdentificacion,
+      'identificacion':
+          identificacion,
+      'razon_social':
+          razonSocial,
+      'direccion':
+          direccion,
+      'telefono':
+          telefono,
+      'email':
+          email,
+      'activo':
+          activo,
+    };
   }
 }
