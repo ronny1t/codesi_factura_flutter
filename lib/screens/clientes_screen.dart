@@ -50,10 +50,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Error al cargar clientes: $e',
+          content: const Text(
+            'No se pudieron cargar los clientes',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -96,11 +97,25 @@ class _ClientesScreenState extends State<ClientesScreen> {
             setDialogState,
           ) {
             return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+
               title: const Row(
                 children: [
-                  Icon(Icons.person_add),
+                  Icon(
+                    Icons.person_add,
+                    color: Color(0xFF1565C0),
+                  ),
+
                   SizedBox(width: 10),
-                  Text('Nuevo cliente'),
+
+                  Text(
+                    'Nuevo cliente',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
 
@@ -116,22 +131,20 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           MainAxisSize.min,
 
                       children: [
+
                         // =================================================
-                        // TIPO DE IDENTIFICACIÓN
+                        // TIPO IDENTIFICACIÓN
                         // =================================================
 
                         DropdownButtonFormField<String>(
-                          value:
-                              tipoIdentificacion,
+                          value: tipoIdentificacion,
 
                           decoration:
                               const InputDecoration(
                             labelText:
                                 'Tipo de identificación',
                             prefixIcon:
-                                Icon(
-                              Icons.badge,
-                            ),
+                                Icon(Icons.badge),
                             border:
                                 OutlineInputBorder(),
                           ),
@@ -172,9 +185,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                     },
                         ),
 
-                        const SizedBox(
-                          height: 15,
-                        ),
+                        const SizedBox(height: 15),
 
                         // =================================================
                         // IDENTIFICACIÓN
@@ -214,9 +225,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           },
                         ),
 
-                        const SizedBox(
-                          height: 15,
-                        ),
+                        const SizedBox(height: 15),
 
                         // =================================================
                         // RAZÓN SOCIAL
@@ -253,9 +262,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           },
                         ),
 
-                        const SizedBox(
-                          height: 15,
-                        ),
+                        const SizedBox(height: 15),
 
                         // =================================================
                         // DIRECCIÓN
@@ -283,9 +290,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 15,
-                        ),
+                        const SizedBox(height: 15),
 
                         // =================================================
                         // TELÉFONO
@@ -316,9 +321,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           ),
                         ),
 
-                        const SizedBox(
-                          height: 15,
-                        ),
+                        const SizedBox(height: 15),
 
                         // =================================================
                         // EMAIL
@@ -354,8 +357,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                               return null;
                             }
 
-                            if (!value
-                                .contains('@')) {
+                            if (!value.contains('@')) {
                               return 'Ingrese un correo válido';
                             }
 
@@ -373,6 +375,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
               // ==========================================================
 
               actions: [
+
                 TextButton(
                   onPressed: guardando
                       ? null
@@ -469,12 +472,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
                               cliente,
                             );
 
-                            if (!mounted) {
-                              return;
-                            }
+                            if (!mounted) return;
 
                             // ============================================
-                            // CERRAR FORMULARIO
+                            // CERRAR
                             // ============================================
 
                             Navigator.pop(
@@ -482,14 +483,12 @@ class _ClientesScreenState extends State<ClientesScreen> {
                             );
 
                             // ============================================
-                            // RECARGAR LISTA
+                            // RECARGAR
                             // ============================================
 
                             await cargarClientes();
 
-                            if (!mounted) {
-                              return;
-                            }
+                            if (!mounted) return;
 
                             ScaffoldMessenger.of(
                               context,
@@ -500,6 +499,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                 ),
                                 backgroundColor:
                                     Colors.green,
+                                behavior:
+                                    SnackBarBehavior.floating,
                               ),
                             );
                           } catch (e) {
@@ -556,61 +557,145 @@ class _ClientesScreenState extends State<ClientesScreen> {
   Widget construirCliente(
     Cliente cliente,
   ) {
-    return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 6,
+    return Container(
+      margin: const EdgeInsets.only(
+        bottom: 14,
       ),
 
-      child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(
-            Icons.person,
-          ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.grey.shade200,
         ),
-
-        title: Text(
-          cliente.razonSocial,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
-        ),
+        ],
+      ),
 
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+
+        child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
 
           children: [
-            const SizedBox(
-              height: 5,
+
+            // ==========================================================
+            // CABECERA CLIENTE
+            // ==========================================================
+
+            Row(
+              children: [
+
+                Container(
+                  width: 52,
+                  height: 52,
+
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00897B)
+                        .withOpacity(0.10),
+                    borderRadius:
+                        BorderRadius.circular(15),
+                  ),
+
+                  child: const Icon(
+                    Icons.person,
+                    color: Color(0xFF00897B),
+                    size: 28,
+                  ),
+                ),
+
+                const SizedBox(width: 14),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+
+                    children: [
+
+                      Text(
+                        cliente.razonSocial,
+                        maxLines: 2,
+                        overflow:
+                            TextOverflow.ellipsis,
+
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight:
+                              FontWeight.bold,
+                          color:
+                              Color(0xFF263238),
+                        ),
+                      ),
+
+                      const SizedBox(height: 5),
+
+                      Text(
+                        '${cliente.tipoIdentificacion}: '
+                        '${cliente.identificacion}',
+
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
 
-            Text(
-              '${cliente.tipoIdentificacion}: '
-              '${cliente.identificacion}',
+            const SizedBox(height: 15),
+
+            Divider(
+              color: Colors.grey.shade200,
+              height: 1,
             ),
+
+            const SizedBox(height: 12),
+
+            // ==========================================================
+            // EMAIL
+            // ==========================================================
 
             if (cliente.email != null &&
                 cliente.email!.isNotEmpty)
-              Text(
-                'Email: ${cliente.email}',
+              _DatoCliente(
+                icono: Icons.email_outlined,
+                texto: cliente.email!,
               ),
+
+            // ==========================================================
+            // TELÉFONO
+            // ==========================================================
 
             if (cliente.telefono != null &&
                 cliente.telefono!.isNotEmpty)
-              Text(
-                'Teléfono: ${cliente.telefono}',
+              _DatoCliente(
+                icono: Icons.phone_outlined,
+                texto: cliente.telefono!,
               ),
+
+            // ==========================================================
+            // DIRECCIÓN
+            // ==========================================================
 
             if (cliente.direccion != null &&
                 cliente.direccion!.isNotEmpty)
-              Text(
-                'Dirección: ${cliente.direccion}',
+              _DatoCliente(
+                icono:
+                    Icons.location_on_outlined,
+                texto: cliente.direccion!,
               ),
           ],
         ),
-
-        isThreeLine: true,
       ),
     );
   }
@@ -622,18 +707,28 @@ class _ClientesScreenState extends State<ClientesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor:
+          const Color(0xFFF5F7FA),
+
       appBar: AppBar(
+        elevation: 0,
+
+        backgroundColor:
+            const Color(0xFF1565C0),
+
+        foregroundColor: Colors.white,
+
         title: const Text(
           'Clientes',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
 
         actions: [
           IconButton(
             tooltip: 'Actualizar',
-
-            onPressed:
-                cargarClientes,
-
+            onPressed: cargarClientes,
             icon: const Icon(
               Icons.refresh,
             ),
@@ -646,88 +741,161 @@ class _ClientesScreenState extends State<ClientesScreen> {
       // ==========================================================
 
       body: cargando
+
           ? const Center(
               child:
                   CircularProgressIndicator(),
             )
 
           : clientes.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
 
-                    children: [
-                      const Icon(
-                        Icons.people_outline,
-                        size: 70,
-                      ),
-
-                      const SizedBox(
-                        height: 15,
-                      ),
-
-                      const Text(
-                        'No hay clientes disponibles',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(
-                        height: 10,
-                      ),
-
-                      ElevatedButton.icon(
-                        onPressed:
-                            mostrarFormularioCliente,
-
-                        icon: const Icon(
-                          Icons.person_add,
-                        ),
-
-                        label: const Text(
-                          'Registrar cliente',
-                        ),
-                      ),
-                    ],
-                  ),
+              ? _EstadoVacio(
+                  onNuevoCliente:
+                      mostrarFormularioCliente,
                 )
 
               : RefreshIndicator(
                   onRefresh:
                       cargarClientes,
 
-                  child: ListView.builder(
+                  child: ListView(
                     padding:
-                        const EdgeInsets.only(
-                      top: 8,
-                      bottom: 90,
-                    ),
+                        const EdgeInsets.all(20),
 
-                    itemCount:
-                        clientes.length,
+                    children: [
 
-                    itemBuilder:
-                        (context, index) {
-                      final cliente =
-                          clientes[index];
+                      // ==================================================
+                      // ENCABEZADO
+                      // ==================================================
 
-                      return construirCliente(
-                        cliente,
-                      );
-                    },
+                      Container(
+                        padding:
+                            const EdgeInsets.all(20),
+
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              const Color(
+                            0xFF1565C0,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(
+                            20,
+                          ),
+                        ),
+
+                        child: Row(
+                          children: [
+
+                            Container(
+                              width: 55,
+                              height: 55,
+
+                              decoration:
+                                  BoxDecoration(
+                                color: Colors.white
+                                    .withOpacity(
+                                  0.15,
+                                ),
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                  15,
+                                ),
+                              ),
+
+                              child: const Icon(
+                                Icons.people,
+                                color:
+                                    Colors.white,
+                                size: 30,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              width: 16,
+                            ),
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment
+                                        .start,
+
+                                children: [
+
+                                  const Text(
+                                    'Clientes registrados',
+                                    style:
+                                        TextStyle(
+                                      color:
+                                          Colors.white,
+                                      fontSize: 18,
+                                      fontWeight:
+                                          FontWeight
+                                              .bold,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                    height: 5,
+                                  ),
+
+                                  Text(
+                                    '${clientes.length} cliente${clientes.length == 1 ? '' : 's'} registrado${clientes.length == 1 ? '' : 's'}',
+
+                                    style:
+                                        const TextStyle(
+                                      color:
+                                          Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 25,
+                      ),
+
+                      const Text(
+                        'Lista de clientes',
+
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight:
+                              FontWeight.bold,
+                          color:
+                              Color(0xFF263238),
+                        ),
+                      ),
+
+                      const SizedBox(
+                        height: 15,
+                      ),
+
+                      ...clientes.map(
+                        construirCliente,
+                      ),
+                    ],
                   ),
                 ),
 
       // ==========================================================
-      // BOTÓN NUEVO CLIENTE
+      // NUEVO CLIENTE
       // ==========================================================
 
       floatingActionButton:
           FloatingActionButton.extended(
+        backgroundColor:
+            const Color(0xFF1565C0),
+
+        foregroundColor: Colors.white,
+
         onPressed:
             mostrarFormularioCliente,
 
@@ -739,6 +907,145 @@ class _ClientesScreenState extends State<ClientesScreen> {
           'Nuevo cliente',
         ),
       ),
+    );
+  }
+}
+
+
+// ============================================================
+// DATO DEL CLIENTE
+// ============================================================
+
+class _DatoCliente extends StatelessWidget {
+  final IconData icono;
+  final String texto;
+
+  const _DatoCliente({
+    required this.icono,
+    required this.texto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(bottom: 9),
+
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+        children: [
+
+          Icon(
+            icono,
+            size: 18,
+            color: Colors.grey.shade600,
+          ),
+
+          const SizedBox(width: 10),
+
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF546E7A),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+// ============================================================
+// ESTADO VACÍO
+// ============================================================
+
+class _EstadoVacio extends StatelessWidget {
+  final VoidCallback onNuevoCliente;
+
+  const _EstadoVacio({
+    required this.onNuevoCliente,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics:
+          const AlwaysScrollableScrollPhysics(),
+
+      children: [
+
+        SizedBox(
+          height:
+              MediaQuery.of(context)
+                      .size
+                      .height *
+                  0.22,
+        ),
+
+        const Icon(
+          Icons.people_outline,
+          size: 75,
+          color: Colors.grey,
+        ),
+
+        const SizedBox(height: 20),
+
+        const Center(
+          child: Text(
+            'No hay clientes disponibles',
+
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight:
+                  FontWeight.bold,
+              color:
+                  Color(0xFF263238),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        const Padding(
+          padding:
+              EdgeInsets.symmetric(
+            horizontal: 40,
+          ),
+
+          child: Text(
+            'Los clientes registrados aparecerán aquí.',
+            textAlign: TextAlign.center,
+
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        Center(
+          child: ElevatedButton.icon(
+            onPressed:
+                onNuevoCliente,
+
+            icon: const Icon(
+              Icons.person_add,
+            ),
+
+            label: const Text(
+              'Registrar cliente',
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
