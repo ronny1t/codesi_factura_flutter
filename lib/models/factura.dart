@@ -48,25 +48,28 @@ class Factura {
   }
 
   factory Factura.fromJson(Map<String, dynamic> json) {
-    return Factura(
-      idFactura: json['id_factura'],
-      establecimiento: json['establecimiento'] ?? '',
-      puntoEmision: json['punto_emision'] ?? '',
-      secuencial: json['secuencial'] ?? '',
-      claveAcceso: json['clave_acceso'] ?? '',
-      fechaEmision: DateTime.parse(json['fecha_emision']),
-      idCliente: json['id_cliente'],
-      subtotalSinImpuestos:
-          (json['subtotal_sin_impuestos'] ?? 0).toDouble(),
-      totalDescuento:
-          (json['total_descuento'] ?? 0).toDouble(),
-      subtotalIva:
-          (json['subtotal_iva'] ?? 0).toDouble(),
-      propina:
-          (json['propina'] ?? 0).toDouble(),
-      importeTotal:
-          (json['importe_total'] ?? 0).toDouble(),
-      estadoSri: json['estado_sri'] ?? '',
-    );
-  }
+  return Factura(
+    idFactura: json['idFactura'],
+    establecimiento: json['establecimiento']?.toString() ?? '',
+    puntoEmision: json['puntoEmision']?.toString() ?? '',
+    secuencial: json['secuencial']?.toString() ?? '',
+    claveAcceso: json['claveAcceso']?.toString() ?? '',
+    fechaEmision: DateTime.parse(
+      json['fechaEmision'].toString(),
+    ),
+    idCliente: json['idCliente'] ?? 0,
+    subtotalSinImpuestos:
+        (json['subtotalSinImpuestos'] ?? 0).toDouble(),
+    totalDescuento:
+        (json['totalDescuento'] ?? 0).toDouble(),
+    subtotalIva:
+        (json['subtotalIva'] ?? 0).toDouble(),
+    propina:
+        (json['propina'] ?? 0).toDouble(),
+    importeTotal:
+        (json['importeTotal'] ?? 0).toDouble(),
+    estadoSri:
+        json['estadoSri']?.toString() ?? '',
+  );
+}
 }

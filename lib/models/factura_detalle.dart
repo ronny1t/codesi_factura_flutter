@@ -1,8 +1,10 @@
 class FacturaDetalle {
   int? idDetalle;
+
   int idFactura;
   int idProducto;
   int cantidad;
+
   double precioUnitario;
   double descuento;
   double subtotal;
@@ -37,20 +39,31 @@ class FacturaDetalle {
 
   factory FacturaDetalle.fromJson(Map<String, dynamic> json) {
     return FacturaDetalle(
-      idDetalle: json['id_detalle'],
-      idFactura: json['id_factura'],
-      idProducto: json['id_producto'],
-      cantidad: json['cantidad'],
+      idDetalle: (json['idDetalle'] as num?)?.toInt(),
+
+      idFactura:
+          (json['idFactura'] as num?)?.toInt() ?? 0,
+
+      idProducto:
+          (json['idProducto'] as num?)?.toInt() ?? 0,
+
+      cantidad:
+          (json['cantidad'] as num?)?.toInt() ?? 0,
+
       precioUnitario:
-          (json['precio_unitario'] ?? 0).toDouble(),
+          (json['precioUnitario'] as num?)?.toDouble() ?? 0.0,
+
       descuento:
-          (json['descuento'] ?? 0).toDouble(),
+          (json['descuento'] as num?)?.toDouble() ?? 0.0,
+
       subtotal:
-          (json['subtotal'] ?? 0).toDouble(),
+          (json['subtotal'] as num?)?.toDouble() ?? 0.0,
+
       valorIva:
-          (json['valor_iva'] ?? 0).toDouble(),
+          (json['valorIva'] as num?)?.toDouble() ?? 0.0,
+
       total:
-          (json['total'] ?? 0).toDouble(),
+          (json['total'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

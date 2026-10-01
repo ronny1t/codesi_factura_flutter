@@ -15,13 +15,22 @@ class FacturaDetalleService {
   }
 
   static Future<FacturaDetalle> crearDetalle(
-    FacturaDetalle detalle,
-  ) async {
-    final data = await ApiService.post(
-      'FacturaDetalles',
-      detalle.toJson(),
-    );
+  FacturaDetalle detalle,
+) async {
+  final data = await ApiService.post(
+    'FacturaDetalles',
+    {
+      'idFactura': detalle.idFactura,
+      'idProducto': detalle.idProducto,
+      'cantidad': detalle.cantidad,
+      'precioUnitario': detalle.precioUnitario,
+      'descuento': detalle.descuento,
+      'subtotal': detalle.subtotal,
+      'valorIva': detalle.valorIva,
+      'total': detalle.total,
+    },
+  );
 
-    return FacturaDetalle.fromJson(data);
-  }
+  return FacturaDetalle.fromJson(data);
+}
 }

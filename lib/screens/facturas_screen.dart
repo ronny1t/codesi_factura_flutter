@@ -6,17 +6,23 @@ import '../models/factura_detalle.dart';
 import '../models/factura_pago.dart';
 import '../models/producto.dart';
 
+import '../services/api_service.dart';
 import '../services/cliente_service.dart';
 import '../services/factura_detalle_service.dart';
 import '../services/factura_pago_service.dart';
+import '../services/factura_pdf_service.dart';
 import '../services/factura_service.dart';
 import '../services/producto_service.dart';
+
+const Color azul = Color(0xFF1565C0);
+const Color fondo = Color(0xFFF5F7FA);
 
 class FacturasScreen extends StatefulWidget {
   const FacturasScreen({super.key});
 
   @override
-  State<FacturasScreen> createState() => _FacturasScreenState();
+  State<FacturasScreen> createState() =>
+      _FacturasScreenState();
 }
 
 class _FacturasScreenState extends State<FacturasScreen> {
@@ -40,6 +46,35 @@ class _FacturasScreenState extends State<FacturasScreen> {
 
   bool cargandoDatos = true;
   bool generandoFactura = false;
+  bool cambiandoEstado = false;
+
+  // ============================================================
+  // PERMISOS SEGÚN ROL
+  // ============================================================
+
+  bool get esAdministrador =>
+      ApiService.esAdministrador;
+
+  bool get esFacturacion =>
+      ApiService.esFacturacion;
+
+  bool get esBodega =>
+      ApiService.esBodega;
+
+  bool get puedeGestionarFacturas =>
+      ApiService.puedeGestionarFacturas;
+
+  bool get puedeCrearFactura =>
+      ApiService.puedeCrearFactura;
+
+  bool get puedeCambiarEstado =>
+      ApiService.puedeCambiarEstadoFactura;
+
+  bool get puedeEditar =>
+      ApiService.puedeEditarFactura;
+
+  bool get puedeEnviarCorreo =>
+      ApiService.puedeEnviarFacturaCorreo;
 
   @override
   void initState() {
@@ -53,6 +88,7 @@ class _FacturasScreenState extends State<FacturasScreen> {
   void dispose() {
     clienteController.dispose();
     productoController.dispose();
+
     super.dispose();
   }
 
@@ -61,7 +97,17 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // ============================================================
 
   void cargarFacturas() {
-    facturas = FacturaService.obtenerFacturas();
+    facturas =
+        FacturaService.obtenerFacturas();
+  }
+
+  Future<void> recargarFacturas() async {
+    setState(() {
+      facturas =
+          FacturaService.obtenerFacturas();
+    });
+
+    await facturas;
   }
 
   // ============================================================
@@ -92,7 +138,8 @@ class _FacturasScreenState extends State<FacturasScreen> {
       for (final cliente in listaClientes) {
         if (cliente.identificacion ==
                 '9999999999999' ||
-            cliente.razonSocial.toUpperCase() ==
+            cliente.razonSocial
+                    .toUpperCase() ==
                 'CONSUMIDOR_FINAL') {
           consumidorFinal = cliente;
           break;
@@ -126,13 +173,16 @@ class _FacturasScreenState extends State<FacturasScreen> {
         cargandoDatos = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
-          content: const Text(
-            'No se pudieron cargar los datos',
+          content: Text(
+            'No se pudieron cargar los datos.\n$e',
           ),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
         ),
       );
     }
@@ -142,7 +192,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // BUSCAR CLIENTES
   // ============================================================
 
-  List<Cliente> buscarClientes(String texto) {
+  List<Cliente> buscarClientes(
+    String texto,
+  ) {
     final busqueda =
         texto.trim().toLowerCase();
 
@@ -166,7 +218,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
     }).take(8).toList();
   }
 
-  void seleccionarCliente(Cliente cliente) {
+  void seleccionarCliente(
+    Cliente cliente,
+  ) {
     setState(() {
       clienteSeleccionado = cliente;
 
@@ -181,7 +235,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // BUSCAR PRODUCTOS
   // ============================================================
 
-  List<Producto> buscarProductos(String texto) {
+  List<Producto> buscarProductos(
+    String texto,
+  ) {
     final busqueda =
         texto.trim().toLowerCase();
 
@@ -200,9 +256,11 @@ class _FacturasScreenState extends State<FacturasScreen> {
   }
 
   void seleccionarProducto(
-      Producto producto) {
+    Producto producto,
+  ) {
     setState(() {
-      productoSeleccionado = producto;
+      productoSeleccionado =
+          producto;
 
       productoController.text =
           producto.nombre;
@@ -216,30 +274,52 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // ============================================================
 
   void agregarProducto() {
+    if (!puedeCrearFactura) {
+      return;
+    }
+
     if (productoSeleccionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content:
               Text('Seleccione un producto'),
         ),
       );
+
       return;
     }
 
     final producto =
         productoSeleccionado!;
 
+    if (!producto.activo) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'El producto está inactivo',
+          ),
+        ),
+      );
+
+      return;
+    }
+
     if (producto.stock <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content:
               Text('El producto no tiene stock'),
         ),
       );
+
       return;
     }
 
-    final indice = carrito.indexWhere(
+    final indice =
+        carrito.indexWhere(
       (item) =>
           item.producto.idProducto ==
           producto.idProducto,
@@ -247,7 +327,8 @@ class _FacturasScreenState extends State<FacturasScreen> {
 
     setState(() {
       if (indice >= 0) {
-        final item = carrito[indice];
+        final item =
+            carrito[indice];
 
         if (item.cantidad <
             producto.stock) {
@@ -271,7 +352,13 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // CANTIDADES
   // ============================================================
 
-  void aumentarCantidad(int index) {
+  void aumentarCantidad(
+    int index,
+  ) {
+    if (!puedeCrearFactura) {
+      return;
+    }
+
     final item = carrito[index];
 
     if (item.cantidad <
@@ -282,7 +369,13 @@ class _FacturasScreenState extends State<FacturasScreen> {
     }
   }
 
-  void disminuirCantidad(int index) {
+  void disminuirCantidad(
+    int index,
+  ) {
+    if (!puedeCrearFactura) {
+      return;
+    }
+
     final item = carrito[index];
 
     setState(() {
@@ -299,30 +392,42 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // ============================================================
 
   double get subtotal {
-    double total = 0;
+    return carrito.fold(
+      0,
+      (total, item) =>
+          total + item.subtotal,
+    );
+  }
 
-    for (final item in carrito) {
-      total += item.subtotal;
-    }
-
-    return total;
+  double get subtotalIva {
+    return carrito
+        .where(
+          (item) =>
+              item.producto.tarifaIva >
+              0,
+        )
+        .fold(
+          0,
+          (total, item) =>
+              total + item.subtotal,
+        );
   }
 
   double get totalIva {
-    double total = 0;
-
-    for (final item in carrito) {
-      total += item.iva;
-    }
-
-    return total;
+    return carrito.fold(
+      0,
+      (total, item) =>
+          total + item.iva,
+    );
   }
 
   double get total {
     return subtotal + totalIva;
   }
 
-  String formatoMoneda(double valor) {
+  String formatoMoneda(
+    double valor,
+  ) {
     return '\$${valor.toStringAsFixed(2)}';
   }
 
@@ -331,24 +436,32 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // ============================================================
 
   Future<void> generarFactura() async {
+    if (!puedeCrearFactura) {
+      return;
+    }
+
     if (clienteSeleccionado == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content:
               Text('Seleccione un cliente'),
         ),
       );
+
       return;
     }
 
     if (carrito.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         const SnackBar(
           content: Text(
             'Agregue al menos un producto',
           ),
         ),
       );
+
       return;
     }
 
@@ -357,77 +470,51 @@ class _FacturasScreenState extends State<FacturasScreen> {
     });
 
     try {
-      // ==========================================================
-      // 1. CREAR CABECERA
-      // ==========================================================
-
-      final factura = Factura(
+      final factura =
+          Factura(
         establecimiento: '001',
         puntoEmision: '001',
-        secuencial: generarSecuencial(),
+        secuencial: '',
         claveAcceso: '',
-        fechaEmision: DateTime.now(),
+        fechaEmision:
+            DateTime.now(),
         idCliente:
             clienteSeleccionado!.idCliente,
-        subtotalSinImpuestos: subtotal,
+        subtotalSinImpuestos:
+            subtotal,
         totalDescuento: 0,
-        subtotalIva: subtotal,
+        subtotalIva:
+            subtotalIva,
         propina: 0,
         importeTotal: total,
-        estadoSri: 'PENDIENTE',
+        estadoSri: 'CREADA',
       );
 
-      final facturaCreada =
-          await FacturaService.crearFactura(
-        factura,
-      );
-
-      final idFactura =
-          facturaCreada.idFactura;
-
-      if (idFactura == null) {
-        throw Exception(
-          'El servidor no devolvió el ID de la factura',
-        );
-      }
-
-      // ==========================================================
-      // 2. CREAR DETALLES
-      // ==========================================================
-
-      for (final item in carrito) {
-        final detalle =
-            FacturaDetalle(
-          idFactura: idFactura,
+      final detalles =
+          carrito.map((item) {
+        return FacturaDetalle(
+          idFactura: 0,
           idProducto:
               item.producto.idProducto,
           cantidad: item.cantidad,
           precioUnitario:
-              item.producto.precioUnitario,
+              item.producto
+                  .precioUnitario,
           descuento: 0,
-          subtotal: item.subtotal,
+          subtotal:
+              item.subtotal,
           valorIva: item.iva,
           total: item.total,
         );
+      }).toList();
 
-        await FacturaDetalleService
-            .crearDetalle(
-          detalle,
-        );
-      }
-
-      // ==========================================================
-      // 3. CREAR PAGO
-      // ==========================================================
-
-      final pago = FacturaPago(
-        idFactura: idFactura,
+      final facturaCreada =
+          await FacturaService
+              .crearFacturaCompleta(
+        factura: factura,
+        detalles: detalles,
         formaPago: formaPago,
-        total: total,
-      );
-
-      await FacturaPagoService.crearPago(
-        pago,
+        totalPago: total,
       );
 
       if (!mounted) return;
@@ -435,22 +522,28 @@ class _FacturasScreenState extends State<FacturasScreen> {
       setState(() {
         carrito.clear();
 
-        productoSeleccionado = null;
+        productoSeleccionado =
+            null;
 
         productoController.clear();
 
         generandoFactura = false;
 
-        cargarFacturas();
+        facturas =
+            FacturaService
+                .obtenerFacturas();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
-            'Factura #$idFactura creada correctamente',
+            'Factura #${facturaCreada.idFactura} creada correctamente',
           ),
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
+          backgroundColor:
+              Colors.green.shade700,
+          behavior:
+              SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -460,29 +553,591 @@ class _FacturasScreenState extends State<FacturasScreen> {
         generandoFactura = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
         SnackBar(
           content: Text(
-            'Error al generar factura: $e',
+            'Error al generar factura:\n$e',
           ),
           duration:
-              const Duration(seconds: 5),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
+              const Duration(seconds: 6),
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
         ),
       );
     }
   }
 
-  String generarSecuencial() {
-    final ahora = DateTime.now();
+  // ============================================================
+  // CAMBIAR ESTADO
+  // ============================================================
 
-    return '${ahora.year}'
-        '${ahora.month.toString().padLeft(2, '0')}'
-        '${ahora.day.toString().padLeft(2, '0')}'
-        '${ahora.hour.toString().padLeft(2, '0')}'
-        '${ahora.minute.toString().padLeft(2, '0')}'
-        '${ahora.second.toString().padLeft(2, '0')}';
+  Future<void> cambiarEstadoFactura(
+    Factura factura,
+    String nuevoEstado,
+  ) async {
+    if (!puedeCambiarEstado) {
+      return;
+    }
+
+    if (factura.idFactura == null) {
+      return;
+    }
+
+    final estadoActual =
+        factura.estadoSri.toUpperCase();
+
+    if (estadoActual ==
+        nuevoEstado.toUpperCase()) {
+      return;
+    }
+
+    setState(() {
+      cambiandoEstado = true;
+    });
+
+    try {
+      await ApiService.put(
+        'Facturas/${factura.idFactura}/estado/$nuevoEstado',
+        {},
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        cambiandoEstado = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Factura #${factura.idFactura} → $nuevoEstado',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor:
+              Colors.green.shade700,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+
+      await recargarFacturas();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        cambiandoEstado = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo cambiar el estado.\n$e',
+          ),
+          duration:
+              const Duration(seconds: 6),
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // SELECTOR DE ESTADO
+  // ============================================================
+
+  Future<void> mostrarSelectorEstado(
+    Factura factura,
+  ) async {
+    if (!puedeCambiarEstado) {
+      return;
+    }
+
+    const estados = [
+      'CREADA',
+      'ENVIADA',
+      'FIRMADA',
+      'AUTORIZADA',
+      'RECHAZADA',
+    ];
+
+    final estadoActual =
+        factura.estadoSri.toUpperCase();
+
+    final nuevoEstado =
+        await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor:
+          Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration:
+              const BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
+          ),
+          padding:
+              const EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            25,
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration:
+                          BoxDecoration(
+                        color: azul
+                            .withOpacity(
+                          0.10,
+                        ),
+                        borderRadius:
+                            BorderRadius
+                                .circular(
+                          13,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.sync_alt,
+                        color: azul,
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 12,
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Cambiar estado',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Factura #${factura.idFactura}',
+                  style: TextStyle(
+                    color:
+                        Colors.grey.shade600,
+                    fontSize: 13,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                ...estados.map(
+                  (estado) {
+                    final seleccionado =
+                        estado ==
+                            estadoActual;
+
+                    final color =
+                        _colorEstado(
+                      estado,
+                    );
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets
+                              .only(
+                        bottom: 8,
+                      ),
+                      child: ListTile(
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            12,
+                          ),
+                          side: BorderSide(
+                            color:
+                                seleccionado
+                                    ? color
+                                    : Colors
+                                        .grey
+                                        .shade200,
+                          ),
+                        ),
+                        leading: Icon(
+                          _iconoEstado(
+                            estado,
+                          ),
+                          color: color,
+                        ),
+                        title: Text(
+                          estado,
+                          style:
+                              TextStyle(
+                            fontWeight:
+                                seleccionado
+                                    ? FontWeight
+                                        .bold
+                                    : FontWeight
+                                        .w500,
+                          ),
+                        ),
+                        trailing:
+                            seleccionado
+                                ? Icon(
+                                    Icons
+                                        .check_circle,
+                                    color:
+                                        color,
+                                  )
+                                : const Icon(
+                                    Icons
+                                        .chevron_right,
+                                    color:
+                                        Colors
+                                            .grey,
+                                  ),
+                        onTap: () {
+                          Navigator.pop(
+                            context,
+                            estado,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (nuevoEstado == null ||
+        nuevoEstado ==
+            estadoActual) {
+      return;
+    }
+
+    await cambiarEstadoFactura(
+      factura,
+      nuevoEstado,
+    );
+  }
+
+  // ============================================================
+  // COLORES ESTADO
+  // ============================================================
+
+  Color _colorEstado(
+    String estado,
+  ) {
+    switch (estado.toUpperCase()) {
+      case 'CREADA':
+        return Colors.blue.shade700;
+
+      case 'ENVIADA':
+        return Colors.indigo.shade700;
+
+      case 'FIRMADA':
+        return Colors.purple.shade700;
+
+      case 'AUTORIZADA':
+        return Colors.teal.shade700;
+
+      case 'RECHAZADA':
+        return Colors.orange.shade800;
+
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+
+  // ============================================================
+  // ICONOS ESTADO
+  // ============================================================
+
+  IconData _iconoEstado(
+    String estado,
+  ) {
+    switch (estado.toUpperCase()) {
+      case 'CREADA':
+        return Icons.receipt_long_outlined;
+
+      case 'ENVIADA':
+        return Icons.send_outlined;
+
+      case 'FIRMADA':
+        return Icons.draw_outlined;
+
+      case 'AUTORIZADA':
+        return Icons.verified_outlined;
+
+      case 'RECHAZADA':
+        return Icons.error_outline;
+
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  // ============================================================
+  // PDF
+  // ============================================================
+
+  Future<void> descargarFactura(
+    Factura factura,
+  ) async {
+    try {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Generando PDF...'),
+            ],
+          ),
+          behavior:
+              SnackBarBehavior.floating,
+          duration:
+              Duration(seconds: 2),
+        ),
+      );
+
+      await FacturaPdfService
+          .descargarFactura(
+        factura: factura,
+        productos: productos,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo generar el PDF.\n$e',
+          ),
+          duration:
+              const Duration(seconds: 6),
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // ENVIAR FACTURA POR CORREO
+  // ============================================================
+
+  Future<void> enviarFacturaPorCorreo(
+    Factura factura,
+  ) async {
+    if (!puedeEnviarCorreo) {
+      return;
+    }
+
+    if (factura.idFactura == null) {
+      return;
+    }
+
+    try {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child:
+                    CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Generando y enviando factura...',
+                ),
+              ),
+            ],
+          ),
+          behavior:
+              SnackBarBehavior.floating,
+          duration:
+              Duration(seconds: 4),
+        ),
+      );
+
+      final pdf =
+          await FacturaPdfService
+              .generarPdfBytes(
+        factura,
+        productos: productos,
+      );
+
+      await FacturaService.enviarFacturaPorCorreo(
+  factura: factura,
+);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: Colors.white,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Factura enviada correctamente por correo.',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor:
+              Colors.green,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo enviar la factura.\n$e',
+          ),
+          duration:
+              const Duration(seconds: 6),
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // EDITAR FACTURA
+  // ============================================================
+
+  Future<void> editarFactura(
+    Factura factura,
+  ) async {
+    if (!puedeEditar) {
+      return;
+    }
+
+    if (factura.idFactura == null) {
+      return;
+    }
+
+    try {
+      final detalles =
+          await FacturaDetalleService
+              .obtenerPorFactura(
+        factura.idFactura!,
+      );
+
+      final pagos =
+          await FacturaPagoService
+              .obtenerPorFactura(
+        factura.idFactura!,
+      );
+
+      if (!mounted) return;
+
+      final resultado =
+          await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return EditarFacturaDialog(
+            factura: factura,
+            detalles: detalles,
+            pagos: pagos,
+            clientes: clientes,
+            productos: productos,
+          );
+        },
+      );
+
+      if (resultado == true) {
+        await recargarFacturas();
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo cargar la factura para editar.\n$e',
+          ),
+          duration:
+              const Duration(seconds: 6),
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ============================================================
@@ -490,31 +1145,44 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // ============================================================
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF5F7FA),
+      backgroundColor: fondo,
 
       appBar: AppBar(
         elevation: 0,
-        backgroundColor:
-            const Color(0xFF1565C0),
-        foregroundColor: Colors.white,
+        backgroundColor: azul,
+        foregroundColor:
+            Colors.white,
 
-        title: const Text(
-          'Facturas',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+        title: const Row(
+          children: [
+            Icon(
+              Icons.receipt_long,
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Facturas',
+              style: TextStyle(
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+          ],
         ),
 
         actions: [
           IconButton(
             tooltip: 'Actualizar',
-            onPressed: () {
-              cargarFacturas();
-              cargarDatos();
-            },
+            onPressed:
+                cargandoDatos
+                    ? null
+                    : () async {
+                        await cargarDatos();
+                        await recargarFacturas();
+                      },
             icon: const Icon(
               Icons.refresh,
             ),
@@ -525,9 +1193,17 @@ class _FacturasScreenState extends State<FacturasScreen> {
       body: cargandoDatos
           ? const Center(
               child:
-                  CircularProgressIndicator(),
+                  CircularProgressIndicator(
+                color: azul,
+              ),
             )
-          : _contenido(),
+          : RefreshIndicator(
+              onRefresh: () async {
+                await cargarDatos();
+                await recargarFacturas();
+              },
+              child: _contenido(),
+            ),
     );
   }
 
@@ -536,29 +1212,16 @@ class _FacturasScreenState extends State<FacturasScreen> {
   // ============================================================
 
   Widget _contenido() {
-    return RefreshIndicator(
-      onRefresh: () async {
-        cargarFacturas();
-        await cargarDatos();
-      },
+    return ListView(
+      physics:
+          const AlwaysScrollableScrollPhysics(),
+      padding:
+          const EdgeInsets.all(20),
+      children: [
+        _encabezado(),
 
-      child: ListView(
-        padding:
-            const EdgeInsets.all(20),
-
-        children: [
-
-          // ========================================================
-          // ENCABEZADO
-          // ========================================================
-
-          _encabezado(),
-
+        if (puedeGestionarFacturas) ...[
           const SizedBox(height: 25),
-
-          // ========================================================
-          // CLIENTE
-          // ========================================================
 
           _seccionTitulo(
             Icons.person,
@@ -575,10 +1238,6 @@ class _FacturasScreenState extends State<FacturasScreen> {
 
           const SizedBox(height: 25),
 
-          // ========================================================
-          // PRODUCTO
-          // ========================================================
-
           _seccionTitulo(
             Icons.inventory_2,
             'Agregar productos',
@@ -590,52 +1249,32 @@ class _FacturasScreenState extends State<FacturasScreen> {
 
           const SizedBox(height: 20),
 
-          // ========================================================
-          // CARRITO
-          // ========================================================
-
           _listaCarrito(),
 
           const SizedBox(height: 20),
-
-          // ========================================================
-          // RESUMEN
-          // ========================================================
 
           _resumen(),
 
           const SizedBox(height: 20),
 
-          // ========================================================
-          // PAGO
-          // ========================================================
-
           _formaPago(),
 
           const SizedBox(height: 20),
 
-          // ========================================================
-          // BOTÓN
-          // ========================================================
-
           _botonGenerar(),
-
-          const SizedBox(height: 35),
-
-          // ========================================================
-          // FACTURAS REGISTRADAS
-          // ========================================================
-
-          _seccionTitulo(
-            Icons.history,
-            'Facturas registradas',
-          ),
-
-          const SizedBox(height: 15),
-
-          _listaFacturas(),
         ],
-      ),
+
+        const SizedBox(height: 35),
+
+        _seccionTitulo(
+          Icons.history,
+          'Facturas registradas',
+        ),
+
+        const SizedBox(height: 15),
+
+        _listaFacturas(),
+      ],
     );
   }
 
@@ -648,59 +1287,55 @@ class _FacturasScreenState extends State<FacturasScreen> {
       width: double.infinity,
       padding:
           const EdgeInsets.all(22),
-
-      decoration: BoxDecoration(
-        color:
-            const Color(0xFF1565C0),
+      decoration:
+          BoxDecoration(
+        color: azul,
         borderRadius:
             BorderRadius.circular(22),
       ),
-
       child: Row(
         children: [
-
           Container(
             width: 58,
             height: 58,
-
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color: Colors.white
                   .withOpacity(0.15),
               borderRadius:
-                  BorderRadius.circular(16),
+                  BorderRadius.circular(
+                16,
+              ),
             ),
-
             child: const Icon(
               Icons.receipt_long,
               color: Colors.white,
               size: 32,
             ),
           ),
-
           const SizedBox(width: 16),
-
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
-
               children: [
-
                 Text(
-                  'Nueva factura',
-                  style: TextStyle(
+                  puedeGestionarFacturas
+                      ? 'Nueva factura'
+                      : 'Facturas',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight:
                         FontWeight.bold,
                   ),
                 ),
-
-                SizedBox(height: 5),
-
+                const SizedBox(height: 5),
                 Text(
-                  'Registra una nueva venta',
-                  style: TextStyle(
+                  puedeGestionarFacturas
+                      ? 'Registra una nueva venta'
+                      : 'Consulta las facturas registradas',
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,
                   ),
@@ -714,7 +1349,7 @@ class _FacturasScreenState extends State<FacturasScreen> {
   }
 
   // ============================================================
-  // TÍTULO DE SECCIÓN
+  // TÍTULO SECCIÓN
   // ============================================================
 
   Widget _seccionTitulo(
@@ -723,16 +1358,12 @@ class _FacturasScreenState extends State<FacturasScreen> {
   ) {
     return Row(
       children: [
-
         Icon(
           icono,
-          color:
-              const Color(0xFF1565C0),
+          color: azul,
           size: 23,
         ),
-
         const SizedBox(width: 8),
-
         Text(
           titulo,
           style: const TextStyle(
@@ -754,35 +1385,33 @@ class _FacturasScreenState extends State<FacturasScreen> {
   Widget _buscadorCliente() {
     return Column(
       children: [
-
         TextField(
           controller:
               clienteController,
-
           decoration:
               InputDecoration(
             hintText:
                 'Buscar nombre, identificación, correo...',
             prefixIcon:
-                const Icon(Icons.search),
-
+                const Icon(
+              Icons.search,
+            ),
             suffixIcon:
                 IconButton(
               icon:
                   const Icon(Icons.clear),
-
               onPressed: () {
                 setState(() {
-                  clienteController.clear();
+                  clienteController
+                      .clear();
                   clienteSeleccionado =
                       null;
                 });
               },
             ),
-
             filled: true,
-            fillColor: Colors.white,
-
+            fillColor:
+                Colors.white,
             border:
                 OutlineInputBorder(
               borderRadius:
@@ -793,20 +1422,14 @@ class _FacturasScreenState extends State<FacturasScreen> {
                   BorderSide.none,
             ),
           ),
-
           onChanged: (_) {
             setState(() {});
           },
         ),
-
         _resultadosClientes(),
       ],
     );
   }
-
-  // ============================================================
-  // RESULTADOS CLIENTES
-  // ============================================================
 
   Widget _resultadosClientes() {
     final resultados =
@@ -826,7 +1449,6 @@ class _FacturasScreenState extends State<FacturasScreen> {
           const EdgeInsets.only(
         top: 6,
       ),
-
       decoration:
           BoxDecoration(
         color: Colors.white,
@@ -834,51 +1456,46 @@ class _FacturasScreenState extends State<FacturasScreen> {
             BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withOpacity(
-              0.08,
-            ),
+            color: Colors.black
+                .withOpacity(0.08),
             blurRadius: 10,
           ),
         ],
       ),
-
       child: Column(
         children:
-            resultados.map((cliente) {
-          return ListTile(
-            leading:
-                const CircleAvatar(
-              backgroundColor:
-                  Color(0xFFE3F2FD),
-              child: Icon(
-                Icons.person,
-                color:
-                    Color(0xFF1565C0),
+            resultados.map(
+          (cliente) {
+            return ListTile(
+              leading:
+                  const CircleAvatar(
+                backgroundColor:
+                    Color(0xFFE3F2FD),
+                child: Icon(
+                  Icons.person,
+                  color: azul,
+                ),
               ),
-            ),
-
-            title: Text(
-              cliente.razonSocial,
-              style:
-                  const TextStyle(
-                fontWeight:
-                    FontWeight.bold,
+              title: Text(
+                cliente.razonSocial,
+                style:
+                    const TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                ),
               ),
-            ),
-
-            subtitle: Text(
-              '${cliente.tipoIdentificacion}: '
-              '${cliente.identificacion}',
-            ),
-
-            onTap: () {
-              seleccionarCliente(
-                cliente,
-              );
-            },
-          );
-        }).toList(),
+              subtitle: Text(
+                '${cliente.tipoIdentificacion}: '
+                '${cliente.identificacion}',
+              ),
+              onTap: () {
+                seleccionarCliente(
+                  cliente,
+                );
+              },
+            );
+          },
+        ).toList(),
       ),
     );
   }
@@ -899,50 +1516,44 @@ class _FacturasScreenState extends State<FacturasScreen> {
     return Container(
       padding:
           const EdgeInsets.all(16),
-
-      decoration: BoxDecoration(
+      decoration:
+          BoxDecoration(
         color: Colors.white,
         borderRadius:
             BorderRadius.circular(18),
         border: Border.all(
-          color:
-              const Color(0xFF1565C0)
-                  .withOpacity(0.2),
+          color: azul.withOpacity(
+            0.20,
+          ),
         ),
       ),
-
       child: Row(
         children: [
-
           Container(
             width: 50,
             height: 50,
-
-            decoration: BoxDecoration(
+            decoration:
+                BoxDecoration(
               color:
-                  const Color(0xFFE3F2FD),
+                  const Color(
+                0xFFE3F2FD,
+              ),
               borderRadius:
                   BorderRadius.circular(
                 14,
               ),
             ),
-
             child: const Icon(
               Icons.person,
-              color:
-                  Color(0xFF1565C0),
+              color: azul,
             ),
           ),
-
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
-
               children: [
-
                 Text(
                   cliente.razonSocial,
                   style:
@@ -952,9 +1563,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
                     fontSize: 16,
                   ),
                 ),
-
-                const SizedBox(height: 4),
-
+                const SizedBox(
+                  height: 4,
+                ),
                 Text(
                   '${cliente.tipoIdentificacion}: '
                   '${cliente.identificacion}',
@@ -967,7 +1578,6 @@ class _FacturasScreenState extends State<FacturasScreen> {
               ],
             ),
           ),
-
           IconButton(
             onPressed: () {
               setState(() {
@@ -994,11 +1604,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
   Widget _buscadorProducto() {
     return Column(
       children: [
-
         TextField(
           controller:
               productoController,
-
           decoration:
               InputDecoration(
             hintText:
@@ -1007,12 +1615,10 @@ class _FacturasScreenState extends State<FacturasScreen> {
                 const Icon(
               Icons.search,
             ),
-
             suffixIcon:
                 IconButton(
               icon:
                   const Icon(Icons.clear),
-
               onPressed: () {
                 setState(() {
                   productoController
@@ -1022,10 +1628,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
                 });
               },
             ),
-
             filled: true,
-            fillColor: Colors.white,
-
+            fillColor:
+                Colors.white,
             border:
                 OutlineInputBorder(
               borderRadius:
@@ -1036,20 +1641,35 @@ class _FacturasScreenState extends State<FacturasScreen> {
                   BorderSide.none,
             ),
           ),
-
           onChanged: (_) {
             setState(() {});
           },
         ),
 
         _resultadosProductos(),
+
+        if (productoSeleccionado !=
+            null)
+          Padding(
+            padding:
+                const EdgeInsets.only(
+              top: 10,
+            ),
+            child:
+                ElevatedButton.icon(
+              onPressed:
+                  agregarProducto,
+              icon: const Icon(
+                Icons.add_shopping_cart,
+              ),
+              label: Text(
+                'Agregar ${productoSeleccionado!.nombre}',
+              ),
+            ),
+          ),
       ],
     );
   }
-
-  // ============================================================
-  // RESULTADOS PRODUCTOS
-  // ============================================================
 
   Widget _resultadosProductos() {
     final resultados =
@@ -1069,7 +1689,6 @@ class _FacturasScreenState extends State<FacturasScreen> {
           const EdgeInsets.only(
         top: 6,
       ),
-
       decoration:
           BoxDecoration(
         color: Colors.white,
@@ -1077,63 +1696,65 @@ class _FacturasScreenState extends State<FacturasScreen> {
             BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color:
-                Colors.black.withOpacity(
-              0.08,
-            ),
+            color: Colors.black
+                .withOpacity(0.08),
             blurRadius: 10,
           ),
         ],
       ),
-
       child: Column(
         children:
-            resultados.map((producto) {
-          return ListTile(
-            leading:
-                const CircleAvatar(
-              backgroundColor:
-                  Color(0xFFFFF3E0),
-              child: Icon(
-                Icons.inventory_2,
-                color:
-                    Color(0xFFEF6C00),
+            resultados.map(
+          (producto) {
+            final sinStock =
+                producto.stock <= 0;
+
+            return ListTile(
+              leading:
+                  const CircleAvatar(
+                backgroundColor:
+                    Color(0xFFFFF3E0),
+                child: Icon(
+                  Icons.inventory_2,
+                  color:
+                      Color(0xFFEF6C00),
+                ),
               ),
-            ),
-
-            title: Text(
-              producto.nombre,
-              style:
-                  const TextStyle(
-                fontWeight:
-                    FontWeight.bold,
+              title: Text(
+                producto.nombre,
+                style:
+                    const TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                ),
               ),
-            ),
-
-            subtitle: Text(
-              'Código: '
-              '${producto.codigoPrincipal ?? 'Sin código'}\n'
-              'Precio: '
-              '${formatoMoneda(producto.precioUnitario)}'
-              ' • Stock: ${producto.stock}',
-            ),
-
-            isThreeLine: true,
-
-            trailing:
-                const Icon(
-              Icons.add_circle_outline,
-              color:
-                  Color(0xFF1565C0),
-            ),
-
-            onTap: () {
-              seleccionarProducto(
-                producto,
-              );
-            },
-          );
-        }).toList(),
+              subtitle: Text(
+                'Código: '
+                '${producto.codigoPrincipal ?? 'Sin código'}\n'
+                'Precio: '
+                '${formatoMoneda(producto.precioUnitario)}'
+                ' • Stock: ${producto.stock}',
+              ),
+              isThreeLine: true,
+              trailing: Icon(
+                sinStock
+                    ? Icons.block
+                    : Icons
+                        .add_circle_outline,
+                color: sinStock
+                    ? Colors.red
+                    : azul,
+              ),
+              onTap: sinStock
+                  ? null
+                  : () {
+                      seleccionarProducto(
+                        producto,
+                      );
+                    },
+            );
+          },
+        ).toList(),
       ),
     );
   }
@@ -1147,35 +1768,27 @@ class _FacturasScreenState extends State<FacturasScreen> {
       return Container(
         padding:
             const EdgeInsets.all(25),
-
         decoration:
             BoxDecoration(
           color: Colors.white,
           borderRadius:
               BorderRadius.circular(18),
         ),
-
         child: const Column(
           children: [
-
             Icon(
               Icons.shopping_cart_outlined,
               size: 50,
               color: Colors.grey,
             ),
-
             SizedBox(height: 10),
-
             Text(
               'No hay productos agregados',
               style: TextStyle(
                 color: Colors.grey,
-                fontSize: 14,
               ),
             ),
-
             SizedBox(height: 4),
-
             Text(
               'Busca un producto para agregarlo',
               style: TextStyle(
@@ -1195,37 +1808,32 @@ class _FacturasScreenState extends State<FacturasScreen> {
         borderRadius:
             BorderRadius.circular(18),
       ),
-
       child: Column(
         children: [
-
           Padding(
             padding:
-                const EdgeInsets.all(18),
-
+                const EdgeInsets.all(
+              18,
+            ),
             child: Row(
               children: [
-
                 const Icon(
                   Icons.shopping_cart,
-                  color:
-                      Color(0xFF1565C0),
+                  color: azul,
                 ),
-
-                const SizedBox(width: 10),
-
+                const SizedBox(
+                  width: 10,
+                ),
                 const Expanded(
                   child: Text(
                     'Detalle de factura',
-                    style:
-                        TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight:
                           FontWeight.bold,
                     ),
                   ),
                 ),
-
                 Text(
                   '${carrito.length} producto${carrito.length == 1 ? '' : 's'}',
                   style:
@@ -1238,9 +1846,14 @@ class _FacturasScreenState extends State<FacturasScreen> {
             ),
           ),
 
-          const Divider(height: 1),
+          const Divider(
+            height: 1,
+          ),
 
-          ...carrito.asMap().entries.map(
+          ...carrito
+              .asMap()
+              .entries
+              .map(
             (entry) {
               final index =
                   entry.key;
@@ -1255,14 +1868,11 @@ class _FacturasScreenState extends State<FacturasScreen> {
                   horizontal: 14,
                   vertical: 10,
                 ),
-
                 child: Row(
                   children: [
-
                     Container(
                       width: 45,
                       height: 45,
-
                       decoration:
                           BoxDecoration(
                         color:
@@ -1275,16 +1885,12 @@ class _FacturasScreenState extends State<FacturasScreen> {
                           12,
                         ),
                       ),
-
                       child: Center(
                         child: Text(
                           '${item.cantidad}',
                           style:
                               const TextStyle(
-                            color:
-                                Color(
-                              0xFF1565C0,
-                            ),
+                            color: azul,
                             fontWeight:
                                 FontWeight
                                     .bold,
@@ -1302,18 +1908,14 @@ class _FacturasScreenState extends State<FacturasScreen> {
                         crossAxisAlignment:
                             CrossAxisAlignment
                                 .start,
-
                         children: [
-
                           Text(
                             item.producto
                                 .nombre,
-
                             maxLines: 2,
                             overflow:
                                 TextOverflow
                                     .ellipsis,
-
                             style:
                                 const TextStyle(
                               fontWeight:
@@ -1322,14 +1924,11 @@ class _FacturasScreenState extends State<FacturasScreen> {
                               fontSize: 14,
                             ),
                           ),
-
                           const SizedBox(
                             height: 4,
                           ),
-
                           Text(
                             '${formatoMoneda(item.producto.precioUnitario)} × ${item.cantidad}',
-
                             style:
                                 const TextStyle(
                               color:
@@ -1345,54 +1944,40 @@ class _FacturasScreenState extends State<FacturasScreen> {
                       crossAxisAlignment:
                           CrossAxisAlignment
                               .end,
-
                       children: [
-
                         Text(
                           formatoMoneda(
                             item.total,
                           ),
-
                           style:
                               const TextStyle(
                             fontWeight:
                                 FontWeight
                                     .bold,
-                            fontSize: 14,
                           ),
                         ),
-
                         const SizedBox(
                           height: 5,
                         ),
-
                         Row(
                           mainAxisSize:
-                              MainAxisSize.min,
-
+                              MainAxisSize
+                                  .min,
                           children: [
-
-                            InkWell(
-                              onTap: () {
+                            IconButton(
+                              onPressed: () {
                                 disminuirCantidad(
                                   index,
                                 );
                               },
-
-                              child:
+                              icon:
                                   const Icon(
                                 Icons
                                     .remove_circle_outline,
-                                size: 24,
                                 color:
                                     Colors.grey,
                               ),
                             ),
-
-                            const SizedBox(
-                              width: 8,
-                            ),
-
                             Text(
                               '${item.cantidad}',
                               style:
@@ -1402,27 +1987,17 @@ class _FacturasScreenState extends State<FacturasScreen> {
                                         .bold,
                               ),
                             ),
-
-                            const SizedBox(
-                              width: 8,
-                            ),
-
-                            InkWell(
-                              onTap: () {
+                            IconButton(
+                              onPressed: () {
                                 aumentarCantidad(
                                   index,
                                 );
                               },
-
-                              child:
+                              icon:
                                   const Icon(
                                 Icons
                                     .add_circle_outline,
-                                size: 24,
-                                color:
-                                    Color(
-                                  0xFF1565C0,
-                                ),
+                                color: azul,
                               ),
                             ),
                           ],
@@ -1447,25 +2022,20 @@ class _FacturasScreenState extends State<FacturasScreen> {
     return Container(
       padding:
           const EdgeInsets.all(20),
-
       decoration:
           BoxDecoration(
         color: Colors.white,
         borderRadius:
             BorderRadius.circular(18),
       ),
-
       child: Column(
         children: [
-
           const Align(
             alignment:
                 Alignment.centerLeft,
-
             child: Text(
               'Resumen',
-              style:
-                  TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight:
                     FontWeight.bold,
@@ -1473,7 +2043,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
             ),
           ),
 
-          const SizedBox(height: 15),
+          const SizedBox(
+            height: 15,
+          ),
 
           _filaResumen(
             'Subtotal',
@@ -1485,14 +2057,7 @@ class _FacturasScreenState extends State<FacturasScreen> {
             totalIva,
           ),
 
-          const Padding(
-            padding:
-                EdgeInsets.symmetric(
-              vertical: 8,
-            ),
-            child:
-                Divider(),
-          ),
+          const Divider(),
 
           _filaResumen(
             'TOTAL',
@@ -1514,14 +2079,11 @@ class _FacturasScreenState extends State<FacturasScreen> {
           const EdgeInsets.symmetric(
         vertical: 5,
       ),
-
       child: Row(
         mainAxisAlignment:
             MainAxisAlignment
                 .spaceBetween,
-
         children: [
-
           Text(
             titulo,
             style: TextStyle(
@@ -1531,28 +2093,21 @@ class _FacturasScreenState extends State<FacturasScreen> {
                   ? FontWeight.bold
                   : FontWeight.normal,
               color: grande
-                  ? const Color(
-                      0xFF1565C0,
-                    )
-                  : const Color(
-                      0xFF546E7A,
-                    ),
+                  ? azul
+                  : Colors.grey
+                      .shade700,
             ),
           ),
-
           Text(
             formatoMoneda(valor),
             style: TextStyle(
               fontSize:
                   grande ? 22 : 15,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
               color: grande
-                  ? const Color(
-                      0xFF1565C0,
-                    )
-                  : const Color(
-                      0xFF263238,
-                    ),
+                  ? azul
+                  : Colors.black87,
             ),
           ),
         ],
@@ -1568,18 +2123,15 @@ class _FacturasScreenState extends State<FacturasScreen> {
     return Container(
       padding:
           const EdgeInsets.all(16),
-
       decoration:
           BoxDecoration(
         color: Colors.white,
         borderRadius:
             BorderRadius.circular(18),
       ),
-
       child:
           DropdownButtonFormField<String>(
-        value: formaPago,
-
+        initialValue: formaPago,
         decoration:
             const InputDecoration(
           labelText:
@@ -1589,35 +2141,38 @@ class _FacturasScreenState extends State<FacturasScreen> {
           border:
               OutlineInputBorder(),
         ),
-
         items: const [
-
           DropdownMenuItem(
             value: 'EFECTIVO',
             child:
                 Text('EFECTIVO'),
           ),
-
           DropdownMenuItem(
             value: 'TARJETA',
             child:
                 Text('TARJETA'),
           ),
-
           DropdownMenuItem(
             value: 'TRANSFERENCIA',
-            child:
-                Text('TRANSFERENCIA'),
+            child: Text(
+              'TRANSFERENCIA',
+            ),
           ),
         ],
+        onChanged:
+            generandoFactura
+                ? null
+                : (valor) {
+                    if (valor ==
+                        null) {
+                      return;
+                    }
 
-        onChanged: (valor) {
-          if (valor == null) return;
-
-          setState(() {
-            formaPago = valor;
-          });
-        },
+                    setState(() {
+                      formaPago =
+                          valor;
+                    });
+                  },
       ),
     );
   }
@@ -1629,24 +2184,17 @@ class _FacturasScreenState extends State<FacturasScreen> {
   Widget _botonGenerar() {
     return SizedBox(
       height: 58,
-
       child:
           ElevatedButton.icon(
         onPressed:
             generandoFactura
                 ? null
                 : generarFactura,
-
         style:
             ElevatedButton.styleFrom(
-          backgroundColor:
-              const Color(
-            0xFF1565C0,
-          ),
-
+          backgroundColor: azul,
           foregroundColor:
               Colors.white,
-
           shape:
               RoundedRectangleBorder(
             borderRadius:
@@ -1655,7 +2203,6 @@ class _FacturasScreenState extends State<FacturasScreen> {
             ),
           ),
         ),
-
         icon: generandoFactura
             ? const SizedBox(
                 width: 21,
@@ -1669,12 +2216,10 @@ class _FacturasScreenState extends State<FacturasScreen> {
             : const Icon(
                 Icons.receipt_long,
               ),
-
         label: Text(
           generandoFactura
               ? 'GENERANDO FACTURA...'
               : 'GENERAR FACTURA',
-
           style:
               const TextStyle(
             fontWeight:
@@ -1687,23 +2232,22 @@ class _FacturasScreenState extends State<FacturasScreen> {
   }
 
   // ============================================================
-  // FACTURAS REGISTRADAS
+  // LISTA DE FACTURAS
   // ============================================================
 
   Widget _listaFacturas() {
-    return FutureBuilder<List<Factura>>(
+    return FutureBuilder<
+        List<Factura>>(
       future: facturas,
-
       builder:
           (context, snapshot) {
-
-        if (snapshot.connectionState ==
+        if (snapshot
+                .connectionState ==
             ConnectionState.waiting) {
           return const Center(
             child: Padding(
               padding:
                   EdgeInsets.all(20),
-
               child:
                   CircularProgressIndicator(),
             ),
@@ -1713,8 +2257,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
         if (snapshot.hasError) {
           return Container(
             padding:
-                const EdgeInsets.all(20),
-
+                const EdgeInsets.all(
+              20,
+            ),
             decoration:
                 BoxDecoration(
               color: Colors.white,
@@ -1723,11 +2268,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
                 18,
               ),
             ),
-
             child: Text(
-              'No se pudieron cargar las facturas.',
-              style:
-                  TextStyle(
+              'No se pudieron cargar las facturas.\n${snapshot.error}',
+              style: TextStyle(
                 color:
                     Colors.red.shade700,
               ),
@@ -1741,8 +2284,9 @@ class _FacturasScreenState extends State<FacturasScreen> {
         if (data.isEmpty) {
           return Container(
             padding:
-                const EdgeInsets.all(25),
-
+                const EdgeInsets.all(
+              25,
+            ),
             decoration:
                 BoxDecoration(
               color: Colors.white,
@@ -1751,22 +2295,20 @@ class _FacturasScreenState extends State<FacturasScreen> {
                 18,
               ),
             ),
-
             child: const Column(
               children: [
-
                 Icon(
-                  Icons.receipt_long_outlined,
+                  Icons
+                      .receipt_long_outlined,
                   size: 50,
                   color: Colors.grey,
                 ),
-
-                SizedBox(height: 10),
-
+                SizedBox(
+                  height: 10,
+                ),
                 Text(
                   'No existen facturas registradas',
-                  style:
-                      TextStyle(
+                  style: TextStyle(
                     color: Colors.grey,
                   ),
                 ),
@@ -1777,110 +2319,298 @@ class _FacturasScreenState extends State<FacturasScreen> {
 
         return Column(
           children:
-              data.map((factura) {
-
-            return Container(
-              margin:
-                  const EdgeInsets.only(
-                bottom: 12,
-              ),
-
-              decoration:
-                  BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-              ),
-
-              child: ListTile(
-                contentPadding:
-                    const EdgeInsets
-                        .symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-
-                leading:
-                    Container(
-                  width: 48,
-                  height: 48,
-
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        const Color(
-                      0xFFE3F2FD,
-                    ),
-                    borderRadius:
-                        BorderRadius
-                            .circular(
-                      13,
-                    ),
-                  ),
-
-                  child: const Icon(
-                    Icons.receipt_long,
-                    color:
-                        Color(
-                      0xFF1565C0,
-                    ),
-                  ),
-                ),
-
-                title: Text(
-                  'Factura #${factura.idFactura}',
-
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
-                ),
-
-                subtitle:
-                    Padding(
-                  padding:
-                      const EdgeInsets
-                          .only(
-                    top: 5,
-                  ),
-
-                  child: Text(
-                    'Cliente: ${factura.idCliente}\n'
-                    'Estado: ${factura.estadoSri}',
-                  ),
-                ),
-
-                trailing:
-                    Text(
-                  formatoMoneda(
-                    factura.importeTotal,
-                  ),
-
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                    color:
-                        Color(
-                      0xFF1565C0,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
+              data.map(
+            (factura) {
+              return _tarjetaFactura(
+                factura,
+              );
+            },
+          ).toList(),
         );
       },
     );
   }
+
+  // ============================================================
+  // TARJETA FACTURA
+  // ============================================================
+
+  Widget _tarjetaFactura(
+    Factura factura,
+  ) {
+    final estado =
+        factura.estadoSri
+            .toUpperCase();
+
+    final colorEstado =
+        _colorEstado(estado);
+
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
+      padding:
+          const EdgeInsets.all(16),
+      decoration:
+          BoxDecoration(
+        color: Colors.white,
+        borderRadius:
+            BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.grey
+              .shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black
+                .withOpacity(0.03),
+            blurRadius: 8,
+            offset:
+                const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration:
+                    BoxDecoration(
+                  color:
+                      const Color(
+                    0xFFE3F2FD,
+                  ),
+                  borderRadius:
+                      BorderRadius
+                          .circular(
+                    13,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.receipt_long,
+                  color: azul,
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment
+                          .start,
+                  children: [
+                    Text(
+                      'Factura #${factura.idFactura}',
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 4,
+                    ),
+                    Text(
+                      'Cliente: ${factura.idCliente}',
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Text(
+                formatoMoneda(
+                  factura.importeTotal,
+                ),
+                style:
+                    const TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                  color: azul,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 12,
+          ),
+
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  borderRadius:
+                      BorderRadius.circular(
+                    10,
+                  ),
+                  onTap:
+                      !puedeCambiarEstado ||
+                              cambiandoEstado
+                          ? null
+                          : () {
+                              mostrarSelectorEstado(
+                                factura,
+                              );
+                            },
+                  child: Container(
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration:
+                        BoxDecoration(
+                      color: colorEstado
+                          .withOpacity(
+                        0.10,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        10,
+                      ),
+                      border:
+                          Border.all(
+                        color: colorEstado
+                            .withOpacity(
+                          0.25,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize:
+                          MainAxisSize
+                              .min,
+                      children: [
+                        Icon(
+                          _iconoEstado(
+                            estado,
+                          ),
+                          size: 16,
+                          color:
+                              colorEstado,
+                        ),
+                        const SizedBox(
+                          width: 6,
+                        ),
+                        Flexible(
+                          child: Text(
+                            estado,
+                            overflow:
+                                TextOverflow
+                                    .ellipsis,
+                            style:
+                                TextStyle(
+                              color:
+                                  colorEstado,
+                              fontSize:
+                                  11,
+                              fontWeight:
+                                  FontWeight
+                                      .bold,
+                            ),
+                          ),
+                        ),
+
+                        if (puedeCambiarEstado) ...[
+                          const SizedBox(
+                            width: 3,
+                          ),
+                          Icon(
+                            Icons
+                                .keyboard_arrow_down,
+                            size: 17,
+                            color:
+                                colorEstado,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                width: 8,
+              ),
+
+              // PDF
+              IconButton(
+                tooltip:
+                    'Descargar PDF',
+                onPressed: () {
+                  descargarFactura(
+                    factura,
+                  );
+                },
+                icon:
+                    const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color:
+                      Colors.red,
+                ),
+              ),
+
+              // CORREO
+              if (puedeEnviarCorreo)
+                IconButton(
+                  tooltip:
+                      'Enviar por correo',
+                  onPressed: () {
+                    enviarFacturaPorCorreo(
+                      factura,
+                    );
+                  },
+                  icon:
+                      const Icon(
+                    Icons.email_outlined,
+                    color:
+                        Colors.green,
+                  ),
+                ),
+
+              // EDITAR
+              if (puedeEditar)
+                IconButton(
+                  tooltip:
+                      'Editar factura',
+                  onPressed: () {
+                    editarFactura(
+                      factura,
+                    );
+                  },
+                  icon:
+                      const Icon(
+                    Icons.edit_outlined,
+                    color: azul,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// ============================================================
-// ITEM DEL CARRITO
-// ============================================================
+// =================================================================
+// ITEM FACTURA
+// =================================================================
 
 class ItemFactura {
   final Producto producto;
@@ -1893,7 +2623,8 @@ class ItemFactura {
   });
 
   double get subtotal {
-    return producto.precioUnitario *
+    return producto
+            .precioUnitario *
         cantidad;
   }
 
@@ -1904,5 +2635,802 @@ class ItemFactura {
 
   double get total {
     return subtotal + iva;
+  }
+}
+
+// =================================================================
+// DIALOG EDITAR FACTURA
+// =================================================================
+
+class EditarFacturaDialog
+    extends StatefulWidget {
+  final Factura factura;
+  final List<FacturaDetalle> detalles;
+  final List<FacturaPago> pagos;
+  final List<Cliente> clientes;
+  final List<Producto> productos;
+
+  const EditarFacturaDialog({
+    super.key,
+    required this.factura,
+    required this.detalles,
+    required this.pagos,
+    required this.clientes,
+    required this.productos,
+  });
+
+  @override
+  State<EditarFacturaDialog>
+      createState() =>
+          _EditarFacturaDialogState();
+}
+
+class _EditarFacturaDialogState
+    extends State<EditarFacturaDialog> {
+  late Cliente? clienteSeleccionado;
+
+  late List<ItemFactura>
+      carrito;
+
+  late String formaPago;
+
+  bool guardando = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    clienteSeleccionado =
+        widget.clientes
+            .where(
+              (cliente) =>
+                  cliente.idCliente ==
+                  widget.factura.idCliente,
+            )
+            .cast<Cliente?>()
+            .firstOrNull;
+
+    carrito = [];
+
+    for (final detalle
+        in widget.detalles) {
+      Producto? producto;
+
+      for (final item
+          in widget.productos) {
+        if (item.idProducto ==
+            detalle.idProducto) {
+          producto = item;
+          break;
+        }
+      }
+
+      if (producto != null) {
+        carrito.add(
+          ItemFactura(
+            producto: producto,
+            cantidad: detalle.cantidad,
+          ),
+        );
+      }
+    }
+
+    formaPago =
+        widget.pagos.isNotEmpty
+            ? widget
+                .pagos
+                .first
+                .formaPago
+            : 'EFECTIVO';
+  }
+
+  double get subtotal {
+    return carrito.fold(
+      0,
+      (total, item) =>
+          total + item.subtotal,
+    );
+  }
+
+  double get subtotalIva {
+    return carrito
+        .where(
+          (item) =>
+              item.producto.tarifaIva >
+              0,
+        )
+        .fold(
+          0,
+          (total, item) =>
+              total + item.subtotal,
+        );
+  }
+
+  double get totalIva {
+    return carrito.fold(
+      0,
+      (total, item) =>
+          total + item.iva,
+    );
+  }
+
+  double get total {
+    return subtotal + totalIva;
+  }
+
+  String formatoMoneda(
+    double valor,
+  ) {
+    return '\$${valor.toStringAsFixed(2)}';
+  }
+
+  // ============================================================
+  // GUARDAR EDICIÓN
+  // ============================================================
+
+  Future<void> guardar() async {
+    if (widget.factura.idFactura ==
+        null) {
+      return;
+    }
+
+    if (clienteSeleccionado ==
+        null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content:
+              Text('Seleccione un cliente'),
+        ),
+      );
+
+      return;
+    }
+
+    if (carrito.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'La factura debe tener al menos un producto',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      guardando = true;
+    });
+
+    try {
+      final body = {
+        'id_cliente':
+            clienteSeleccionado!
+                .idCliente,
+
+        'fecha_emision':
+            widget.factura
+                .fechaEmision
+                .toIso8601String(),
+
+        'subtotal_sin_impuestos':
+            subtotal,
+
+        'total_descuento': 0,
+
+        'subtotal_iva':
+            subtotalIva,
+
+        'propina': 0,
+
+        'importe_total':
+            total,
+
+        'detalles':
+            carrito.map(
+          (item) {
+            return {
+              'idProducto':
+                  item.producto
+                      .idProducto,
+              'cantidad':
+                  item.cantidad,
+              'precioUnitario':
+                  item.producto
+                      .precioUnitario,
+              'descuento': 0,
+              'subtotal':
+                  item.subtotal,
+              'valorIva':
+                  item.iva,
+              'total':
+                  item.total,
+            };
+          },
+        ).toList(),
+
+        'forma_pago':
+            formaPago,
+
+        'total_pago':
+            total,
+      };
+
+      await ApiService.put(
+        'Facturas/${widget.factura.idFactura}',
+        body,
+      );
+
+      if (!mounted) return;
+
+      Navigator.of(context)
+          .pop(true);
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        guardando = false;
+      });
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo actualizar la factura.\n$e',
+          ),
+          duration:
+              const Duration(seconds: 6),
+          backgroundColor:
+              Colors.red.shade700,
+          behavior:
+              SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // BUSCAR CLIENTE
+  // ============================================================
+
+  List<Cliente> buscarClientes(
+    String texto,
+  ) {
+    final busqueda =
+        texto.trim().toLowerCase();
+
+    if (busqueda.isEmpty) {
+      return [];
+    }
+
+    return widget.clientes.where(
+      (cliente) {
+        return cliente.razonSocial
+                .toLowerCase()
+                .contains(busqueda) ||
+            cliente.identificacion
+                .toLowerCase()
+                .contains(busqueda) ||
+            (cliente.telefono ?? '')
+                .toLowerCase()
+                .contains(busqueda) ||
+            (cliente.email ?? '')
+                .toLowerCase()
+                .contains(busqueda);
+      },
+    ).take(8).toList();
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration:
+                BoxDecoration(
+              color: azul.withOpacity(
+                0.10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(
+                12,
+              ),
+            ),
+            child: const Icon(
+              Icons.edit_outlined,
+              color: azul,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Editar factura',
+            ),
+          ),
+        ],
+      ),
+
+      content: SizedBox(
+        width: 550,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment
+                    .start,
+            children: [
+              Text(
+                'Factura #${widget.factura.idFactura}',
+                style:
+                    const TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+
+              const SizedBox(
+                height: 18,
+              ),
+
+              const Text(
+                'Cliente',
+                style: TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(
+                height: 8,
+              ),
+
+              Autocomplete<Cliente>(
+                initialValue:
+                    TextEditingValue(
+                  text:
+                      clienteSeleccionado
+                          ?.razonSocial ??
+                      '',
+                ),
+                displayStringForOption:
+                    (cliente) =>
+                        cliente.razonSocial,
+                optionsBuilder:
+                    (value) {
+                  return buscarClientes(
+                    value.text,
+                  );
+                },
+                onSelected:
+                    (cliente) {
+                  setState(() {
+                    clienteSeleccionado =
+                        cliente;
+                  });
+                },
+                fieldViewBuilder:
+                    (
+                  context,
+                  controller,
+                  focusNode,
+                  onFieldSubmitted,
+                ) {
+                  return TextField(
+                    controller:
+                        controller,
+                    focusNode:
+                        focusNode,
+                    decoration:
+                        const InputDecoration(
+                      labelText:
+                          'Cliente',
+                      prefixIcon:
+                          Icon(
+                        Icons.person,
+                      ),
+                      border:
+                          OutlineInputBorder(),
+                    ),
+                  );
+                },
+                optionsViewBuilder:
+                    (
+                  context,
+                  onSelected,
+                  options,
+                ) {
+                  return Align(
+                    alignment:
+                        Alignment
+                            .topLeft,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        12,
+                      ),
+                      child: ConstrainedBox(
+                        constraints:
+                            const BoxConstraints(
+                          maxHeight: 250,
+                          maxWidth: 500,
+                        ),
+                        child: ListView
+                            .builder(
+                          padding:
+                              EdgeInsets.zero,
+                          itemCount:
+                              options.length,
+                          itemBuilder:
+                              (
+                            context,
+                            index,
+                          ) {
+                            final cliente =
+                                options
+                                    .elementAt(
+                              index,
+                            );
+
+                            return ListTile(
+                              leading:
+                                  const Icon(
+                                Icons
+                                    .person_outline,
+                                color: azul,
+                              ),
+                              title:
+                                  Text(
+                                cliente
+                                    .razonSocial,
+                              ),
+                              subtitle:
+                                  Text(
+                                cliente
+                                    .identificacion,
+                              ),
+                              onTap: () {
+                                onSelected(
+                                  cliente,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(
+                height: 20,
+              ),
+
+              const Text(
+                'Productos',
+                style: TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              const SizedBox(
+                height: 10,
+              ),
+
+              if (carrito.isEmpty)
+                const Padding(
+                  padding:
+                      EdgeInsets.all(15),
+                  child: Text(
+                    'No hay productos.',
+                    style:
+                        TextStyle(
+                      color:
+                          Colors.grey,
+                    ),
+                  ),
+                ),
+
+              ...carrito
+                  .asMap()
+                  .entries
+                  .map(
+                (entry) {
+                  final index =
+                      entry.key;
+
+                  final item =
+                      entry.value;
+
+                  return Container(
+                    margin:
+                        const EdgeInsets
+                            .only(
+                      bottom: 8,
+                    ),
+                    padding:
+                        const EdgeInsets
+                            .all(
+                      12,
+                    ),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.grey
+                              .shade50,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        12,
+                      ),
+                      border:
+                          Border.all(
+                        color: Colors
+                            .grey
+                            .shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child:
+                              Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                item.producto
+                                    .nombre,
+                                style:
+                                    const TextStyle(
+                                  fontWeight:
+                                      FontWeight
+                                          .bold,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 4,
+                              ),
+                              Text(
+                                formatoMoneda(
+                                  item.producto
+                                      .precioUnitario,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        IconButton(
+                          onPressed:
+                              item.cantidad >
+                                      1
+                                  ? () {
+                                      setState(
+                                        () {
+                                          item.cantidad--;
+                                        },
+                                      );
+                                    }
+                                  : null,
+                          icon:
+                              const Icon(
+                            Icons
+                                .remove_circle_outline,
+                          ),
+                        ),
+
+                        Text(
+                          '${item.cantidad}',
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight
+                                    .bold,
+                          ),
+                        ),
+
+                        IconButton(
+                          onPressed:
+                              item.cantidad <
+                                      item.producto
+                                          .stock
+                                  ? () {
+                                      setState(
+                                        () {
+                                          item.cantidad++;
+                                        },
+                                      );
+                                    }
+                                  : null,
+                          icon:
+                              const Icon(
+                            Icons
+                                .add_circle_outline,
+                            color: azul,
+                          ),
+                        ),
+
+                        IconButton(
+                          onPressed:
+                              () {
+                            setState(
+                              () {
+                                carrito
+                                    .removeAt(
+                                  index,
+                                );
+                              },
+                            );
+                          },
+                          icon:
+                              const Icon(
+                            Icons
+                                .delete_outline,
+                            color:
+                                Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(
+                height: 10,
+              ),
+
+              Align(
+                alignment:
+                    Alignment.centerRight,
+                child: Text(
+                  'TOTAL: ${formatoMoneda(total)}',
+                  style:
+                      const TextStyle(
+                    color: azul,
+                    fontSize: 19,
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              const SizedBox(
+                height: 18,
+              ),
+
+              DropdownButtonFormField<
+                  String>(
+                initialValue:
+                    formaPago,
+                decoration:
+                    const InputDecoration(
+                  labelText:
+                      'Forma de pago',
+                  prefixIcon:
+                      Icon(
+                    Icons.payment,
+                  ),
+                  border:
+                      OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value:
+                        'EFECTIVO',
+                    child: Text(
+                      'EFECTIVO',
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value:
+                        'TARJETA',
+                    child: Text(
+                      'TARJETA',
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value:
+                        'TRANSFERENCIA',
+                    child: Text(
+                      'TRANSFERENCIA',
+                    ),
+                  ),
+                ],
+                onChanged:
+                    guardando
+                        ? null
+                        : (valor) {
+                            if (valor ==
+                                null) {
+                              return;
+                            }
+
+                            setState(() {
+                              formaPago =
+                                  valor;
+                            });
+                          },
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      actions: [
+        TextButton(
+          onPressed: guardando
+              ? null
+              : () {
+                  Navigator.of(
+                    context,
+                  ).pop(false);
+                },
+          child:
+              const Text('Cancelar'),
+        ),
+
+        ElevatedButton.icon(
+          onPressed:
+              guardando
+                  ? null
+                  : guardar,
+          style:
+              ElevatedButton.styleFrom(
+            backgroundColor: azul,
+            foregroundColor:
+                Colors.white,
+          ),
+          icon: guardando
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child:
+                      CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color:
+                        Colors.white,
+                  ),
+                )
+              : const Icon(
+                  Icons.save,
+                ),
+          label: Text(
+            guardando
+                ? 'Guardando...'
+                : 'Guardar cambios',
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =================================================================
+// EXTENSIÓN PARA OBTENER EL PRIMER ELEMENTO NULLABLE
+// =================================================================
+
+extension FirstOrNullExtension<T>
+    on Iterable<T> {
+  T? get firstOrNull {
+    if (isEmpty) {
+      return null;
+    }
+
+    return first;
   }
 }

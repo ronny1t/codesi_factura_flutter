@@ -1,5 +1,6 @@
 class FacturaPago {
   int? idPago;
+
   int idFactura;
   String formaPago;
   double total;
@@ -22,10 +23,16 @@ class FacturaPago {
 
   factory FacturaPago.fromJson(Map<String, dynamic> json) {
     return FacturaPago(
-      idPago: json['id_pago'],
-      idFactura: json['id_factura'],
-      formaPago: json['forma_pago'] ?? '',
-      total: (json['total'] ?? 0).toDouble(),
+      idPago: (json['idPago'] as num?)?.toInt(),
+
+      idFactura:
+          (json['idFactura'] as num?)?.toInt() ?? 0,
+
+      formaPago:
+          json['formaPago']?.toString() ?? '',
+
+      total:
+          (json['total'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

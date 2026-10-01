@@ -2,10 +2,10 @@ class Cliente {
   final int idCliente;
   final String tipoIdentificacion;
   final String identificacion;
-  final String razonSocial;
   final String? direccion;
   final String? telefono;
   final String? email;
+  final String razonSocial;
   final bool activo;
 
   Cliente({
@@ -21,19 +21,19 @@ class Cliente {
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
     return Cliente(
-      idCliente: json['id_cliente'] ?? 0,
+      idCliente: (json['idCliente'] as num?)?.toInt() ?? 0,
       tipoIdentificacion:
-          json['tipo_identificacion'] ?? '',
+          json['tipoIdentificacion']?.toString() ?? '',
       identificacion:
-          json['identificacion'] ?? '',
+          json['identificacion']?.toString() ?? '',
       razonSocial:
-          json['razon_social'] ?? '',
+          json['razonSocial']?.toString() ?? '',
       direccion:
-          json['direccion'],
+          json['direccion']?.toString(),
       telefono:
-          json['telefono'],
+          json['telefono']?.toString(),
       email:
-          json['email'],
+          json['email']?.toString(),
       activo:
           json['activo'] ?? true,
     );
@@ -41,21 +41,13 @@ class Cliente {
 
   Map<String, dynamic> toJson() {
     return {
-      'id_cliente': idCliente,
-      'tipo_identificacion':
-          tipoIdentificacion,
-      'identificacion':
-          identificacion,
-      'razon_social':
-          razonSocial,
-      'direccion':
-          direccion,
-      'telefono':
-          telefono,
-      'email':
-          email,
-      'activo':
-          activo,
+      'TipoIdentificacion': tipoIdentificacion,
+      'Identificacion': identificacion,
+      'RazonSocial': razonSocial,
+      'Direccion': direccion,
+      'Telefono': telefono,
+      'Email': email,
+      'Activo': activo,
     };
   }
 }

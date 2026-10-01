@@ -15,13 +15,17 @@ class FacturaPagoService {
   }
 
   static Future<FacturaPago> crearPago(
-    FacturaPago pago,
-  ) async {
-    final data = await ApiService.post(
-      'FacturaPagos',
-      pago.toJson(),
-    );
+  FacturaPago pago,
+) async {
+  final data = await ApiService.post(
+    'FacturaPagos',
+    {
+      'idFactura': pago.idFactura,
+      'formaPago': pago.formaPago,
+      'total': pago.total,
+    },
+  );
 
-    return FacturaPago.fromJson(data);
-  }
+  return FacturaPago.fromJson(data);
+}
 }

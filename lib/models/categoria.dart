@@ -11,9 +11,19 @@ class Categoria {
 
   factory Categoria.fromJson(Map<String, dynamic> json) {
     return Categoria(
-      idCategoria: json['id_categoria'],
-      nombre: json['nombre'],
-      activo: json['activo'] ?? true,
+      idCategoria:
+          (json['idCategoria'] as num?)?.toInt() ?? 0,
+      nombre:
+          json['nombre']?.toString() ?? '',
+      activo:
+          json['activo'] as bool? ?? true,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'Nombre': nombre,
+      'Activo': activo,
+    };
   }
 }

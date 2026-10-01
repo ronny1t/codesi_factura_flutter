@@ -9,11 +9,11 @@ class ClienteService {
   static Future<List<Cliente>> obtenerClientes() async {
     final data = await ApiService.get('Clientes');
 
-    return (data as List)
-        .map<Cliente>(
-          (json) => Cliente.fromJson(json),
-        )
-        .toList();
+    return data.map<Cliente>((json) {
+      return Cliente.fromJson(
+        Map<String, dynamic>.from(json),
+      );
+    }).toList();
   }
 
   // ============================================================
@@ -24,7 +24,20 @@ class ClienteService {
     Cliente cliente,
   ) async {
     await ApiService.post(
-      '/Clientes',
+      'Clientes',
+      cliente.toJson(),
+    );
+  }
+
+  // ============================================================
+  // ACTUALIZAR CLIENTE
+  // ============================================================
+
+  static Future<void> actualizarCliente(
+    Cliente cliente,
+  ) async {
+    await ApiService.put(
+      'Clientes/${cliente.idCliente}',
       cliente.toJson(),
     );
   }
